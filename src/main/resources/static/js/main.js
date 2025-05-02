@@ -10,6 +10,8 @@ let connectingElement = document.querySelector('.connecting');
 
 let stompClient = null;
 let username = null;
+let room = null;
+let subscription = null;
 
 let colors = [
     '#2196F3', '#32c787', '#00BCD4', '#ff5652',
@@ -19,9 +21,7 @@ let colors = [
 function connect(event) {
     username = document.querySelector('#name').value.trim();
 
-    if(username) {
-        usernamePage.classList.add('hidden');
-        chatPage.classList.remove('hidden');
+    if (username) {
 
         let socket = new SockJS('/ws');
         stompClient = Stomp.over(socket);
@@ -31,18 +31,114 @@ function connect(event) {
     event.preventDefault();
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+    username = localStorage.getItem("username");
+    room = localStorage.getItem("room");
+
+    if (username && room) {
+        enterRoom(room);
+    } else if (username) {
+        onConnected()
+    } else {
+        usernamePage.classList.remove("hidden");
+        document.getElementById("room-page").classList.add("hidden");
+    }
+});
+
+function createRoom() {
+    let roomName = document.getElementById("new-room-name").value.trim();
+
+    if (roomName && stompClient) {
+        stompClient.send("/app/chat.createRoom", {}, roomName);
+
+        document.getElementById("new-room-name").value = '';
+    }
+}
+
+
+function enterRoom(roomName) {
+    room = roomName;
+    localStorage.setItem("room", room);
+    localStorage.setItem("username", username);
+    document.getElementById("room-page").classList.add("hidden");
+    chatPage.classList.remove("hidden");
+
+    messageArea.innerHTML = "";
+
+    if (subscription) {
+        subscription.unsubscribe();
+        console.log("Old subscription is removed.");
+    }
+
+    subscription = stompClient.subscribe('/topic/public/' + room, onMessageReceived);
+    stompClient.send("/app/chat.addUser", {}, JSON.stringify({
+        sender: username,
+        type: "JOIN",
+        room: room
+    }));
+
+    document.getElementById("room-name-title").innerText = "Room: " + room;
+}
+
+function leaveRoom() {
+    stompClient.send("/app/chat.leaveUser", {}, JSON.stringify({
+        sender: username,
+        type: "LEAVE",
+        room: room
+    }));
+
+    if (subscription) {
+        subscription.unsubscribe();
+    }
+
+    localStorage.removeItem("room");
+    room = null;
+
+    chatPage.classList.add("hidden");
+    document.getElementById("room-page").classList.remove("hidden");
+}
 
 function onConnected() {
-    // Subscribe to the Public Topic
-    stompClient.subscribe('/topic/public', onMessageReceived);
+    stompClient.subscribe('/topic/rooms', function (payload) {
+        let data = JSON.parse(payload.body);
 
-    // Tell your username to the server
-    stompClient.send("/app/chat.addUser",
-        {},
-        JSON.stringify({sender: username, type: 'JOIN'})
-    )
+        let roomList = document.getElementById("room-list");
+        roomList.innerHTML = "";
 
-    connectingElement.classList.add('hidden');
+        for (let roomName of data) {
+            let li = document.createElement("li");
+            li.textContent = roomName;
+            li.classList.add("room-item");
+            li.onclick = () => enterRoom(roomName);
+            roomList.appendChild(li);
+        }
+
+        // Показываем страницу комнат и скрываем страницу с именем пользователя
+        usernamePage.classList.add("hidden");
+        document.getElementById("room-page").classList.remove("hidden");
+
+        let savedRoom = localStorage.getItem("room");
+        if (savedRoom) {
+            enterRoom(savedRoom);
+        }
+    });
+
+    stompClient.send("/app/chat.getRooms", {}, "");
+
+    connectingElement.classList.add("hidden");
+}
+
+function disconnect() {
+    if (stompClient !== null) {
+        stompClient.disconnect();
+        localStorage.removeItem("room");
+
+        if (subscription) {
+            subscription.unsubscribe();
+            subscription = null;
+        }
+    }
+    console.log("Disconnected");
 }
 
 
@@ -51,16 +147,16 @@ function onError(error) {
     connectingElement.style.color = 'red';
 }
 
-
 function sendMessage(event) {
     let messageContent = messageInput.value.trim();
-    if(messageContent && stompClient) {
+    if (messageContent && stompClient) {
         let chatMessage = {
             sender: username,
             content: messageInput.value,
-            type: 'CHAT'
+            type: 'CHAT',
+            room: room
         };
-        stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+        stompClient.send("/app/chat.sendMessage/" + room, {}, JSON.stringify(chatMessage));
         messageInput.value = '';
     }
     event.preventDefault();
@@ -72,13 +168,16 @@ function onMessageReceived(payload) {
 
     let messageElement = document.createElement('li');
 
-    if(message.type === 'JOIN') {
+    if (message.type === 'JOIN') {
+        console.log("Processing JOIN event");
         messageElement.classList.add('event-message');
         message.content = message.sender + ' joined!';
     } else if (message.type === 'LEAVE') {
+        console.log("Processing LEAVE event");
         messageElement.classList.add('event-message');
         message.content = message.sender + ' left!';
     } else {
+        console.log("Processing CHAT message");
         messageElement.classList.add('chat-message');
 
         let avatarElement = document.createElement('i');

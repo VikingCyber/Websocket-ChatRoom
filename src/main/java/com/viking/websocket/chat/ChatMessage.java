@@ -1,6 +1,10 @@
 package com.viking.websocket.chat;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -11,4 +15,5 @@ public class ChatMessage {
     private String content;
     private String sender;
     private MessageType type;
+    private String room;
 }
