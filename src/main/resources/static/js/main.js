@@ -18,56 +18,76 @@ let colors = [
     '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
 ];
 
-function connect(event) {
-    username = document.querySelector('#name').value.trim();
-
-    if (username) {
-
-        let socket = new SockJS('/ws');
-        stompClient = Stomp.over(socket);
-
-        stompClient.connect({}, onConnected, onError);
-    }
-    event.preventDefault();
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    username = localStorage.getItem("username");
-    room = localStorage.getItem("room");
+function initializeApp() {
+    username = sessionStorage.getItem("username");
+    room = sessionStorage.getItem("room");
 
     if (username && room) {
         enterRoom(room);
     } else if (username) {
-        onConnected()
+        connectToServer();
     } else {
-        usernamePage.classList.remove("hidden");
-        document.getElementById("room-page").classList.add("hidden");
-    }
-});
-
-function createRoom() {
-    let roomName = document.getElementById("new-room-name").value.trim();
-
-    if (roomName && stompClient) {
-        stompClient.send("/app/chat.createRoom", {}, roomName);
-
-        document.getElementById("new-room-name").value = '';
+        showUsernamePage();
     }
 }
 
+function connectToServer() {
+    let socket = new SockJS('/ws');
+    stompClient = Stomp.over(socket);
+    stompClient.connect({}, onConnected, onError);
+}
+
+function onConnected() {
+    console.log('Connected to WebSocket');
+    subscribeToRooms();
+    showRoomSelectionPage();
+}
+
+function subscribeToRooms() {
+    stompClient.subscribe('/topic/rooms', (payload) => {
+        let data = JSON.parse(payload.body);
+        displayRooms(data);
+    });
+
+    stompClient.send("/app/chat.getRooms", {}, "");
+}
+
+function displayRooms(rooms) {
+    let roomList = document.getElementById("room-list");
+    roomList.innerHTML = "";
+
+    rooms.forEach(roomName => {
+        let li = document.createElement("li");
+        li.textContent = roomName;
+        li.classList.add("room-item");
+        li.onclick = () => enterRoom(roomName);
+        roomList.appendChild(li);
+    });
+}
 
 function enterRoom(roomName) {
     room = roomName;
-    localStorage.setItem("room", room);
-    localStorage.setItem("username", username);
+    sessionStorage.setItem("room", room);
+    sessionStorage.setItem("username", username);
+    navigateToChatPage();
+    joinRoom();
+}
+
+function navigateToChatPage() {
+    messageArea.innerHTML = "";
+    usernamePage.classList.add("hidden");
     document.getElementById("room-page").classList.add("hidden");
     chatPage.classList.remove("hidden");
+    if (!stompClient) {
+        let socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, onConnected, onError);
+    }
+}
 
-    messageArea.innerHTML = "";
-
+function joinRoom() {
     if (subscription) {
         subscription.unsubscribe();
-        console.log("Old subscription is removed.");
     }
 
     subscription = stompClient.subscribe('/topic/public/' + room, onMessageReceived);
@@ -91,56 +111,15 @@ function leaveRoom() {
         subscription.unsubscribe();
     }
 
-    localStorage.removeItem("room");
+    sessionStorage.removeItem("room");
     room = null;
+    navigateToRoomPage();
+}
 
+function navigateToRoomPage() {
     chatPage.classList.add("hidden");
     document.getElementById("room-page").classList.remove("hidden");
 }
-
-function onConnected() {
-    stompClient.subscribe('/topic/rooms', function (payload) {
-        let data = JSON.parse(payload.body);
-
-        let roomList = document.getElementById("room-list");
-        roomList.innerHTML = "";
-
-        for (let roomName of data) {
-            let li = document.createElement("li");
-            li.textContent = roomName;
-            li.classList.add("room-item");
-            li.onclick = () => enterRoom(roomName);
-            roomList.appendChild(li);
-        }
-
-        // Показываем страницу комнат и скрываем страницу с именем пользователя
-        usernamePage.classList.add("hidden");
-        document.getElementById("room-page").classList.remove("hidden");
-
-        let savedRoom = localStorage.getItem("room");
-        if (savedRoom) {
-            enterRoom(savedRoom);
-        }
-    });
-
-    stompClient.send("/app/chat.getRooms", {}, "");
-
-    connectingElement.classList.add("hidden");
-}
-
-function disconnect() {
-    if (stompClient !== null) {
-        stompClient.disconnect();
-        localStorage.removeItem("room");
-
-        if (subscription) {
-            subscription.unsubscribe();
-            subscription = null;
-        }
-    }
-    console.log("Disconnected");
-}
-
 
 function onError(error) {
     connectingElement.textContent = 'Could not connect to WebSocket server. Please refresh this page to try again!';
@@ -152,7 +131,7 @@ function sendMessage(event) {
     if (messageContent && stompClient) {
         let chatMessage = {
             sender: username,
-            content: messageInput.value,
+            content: messageContent,
             type: 'CHAT',
             room: room
         };
@@ -162,56 +141,98 @@ function sendMessage(event) {
     event.preventDefault();
 }
 
-
 function onMessageReceived(payload) {
     let message = JSON.parse(payload.body);
-
-    let messageElement = document.createElement('li');
-
-    if (message.type === 'JOIN') {
-        console.log("Processing JOIN event");
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' joined!';
-    } else if (message.type === 'LEAVE') {
-        console.log("Processing LEAVE event");
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' left!';
-    } else {
-        console.log("Processing CHAT message");
-        messageElement.classList.add('chat-message');
-
-        let avatarElement = document.createElement('i');
-        let avatarText = document.createTextNode(message.sender[0]);
-        avatarElement.appendChild(avatarText);
-        avatarElement.style['background-color'] = getAvatarColor(message.sender);
-
-        messageElement.appendChild(avatarElement);
-
-        let usernameElement = document.createElement('span');
-        let usernameText = document.createTextNode(message.sender);
-        usernameElement.appendChild(usernameText);
-        messageElement.appendChild(usernameElement);
-    }
-
-    let textElement = document.createElement('p');
-    let messageText = document.createTextNode(message.content);
-    textElement.appendChild(messageText);
-
-    messageElement.appendChild(textElement);
-
+    let messageElement = createMessageElement(message);
     messageArea.appendChild(messageElement);
     messageArea.scrollTop = messageArea.scrollHeight;
 }
 
+function createMessageElement(message) {
+    let messageElement = document.createElement('li');
 
-function getAvatarColor(messageSender) {
+    if (message.type === 'JOIN') {
+        messageElement.classList.add('event-message');
+        message.content = `${message.sender} joined!`;
+    } else if (message.type === 'LEAVE') {
+        messageElement.classList.add('event-message');
+        message.content = `${message.sender} left!`;
+    } else {
+        messageElement.classList.add('chat-message');
+        messageElement.appendChild(createAvatar(message.sender));
+        messageElement.appendChild(createUsernameElement(message.sender));
+    }
+
+    let textElement = document.createElement('p');
+    textElement.textContent = message.content;
+    messageElement.appendChild(textElement);
+
+    return messageElement;
+}
+
+function createAvatar(sender) {
+    let avatarElement = document.createElement('i');
+    avatarElement.textContent = sender[0];
+    avatarElement.style['background-color'] = getAvatarColor(sender);
+    return avatarElement;
+}
+
+function createUsernameElement(sender) {
+    let usernameElement = document.createElement('span');
+    usernameElement.textContent = sender;
+    return usernameElement;
+}
+
+function createRoom() {
+    let roomName = document.getElementById("new-room-name").value.trim();
+
+    if (roomName && stompClient) {
+        stompClient.send("/app/chat.createRoom", {}, roomName);
+
+        document.getElementById("new-room-name").value = '';
+    }
+}
+
+function getAvatarColor(sender) {
     let hash = 0;
-    for (var i = 0; i < messageSender.length; i++) {
-        hash = 31 * hash + messageSender.charCodeAt(i);
+    for (let i = 0; i < sender.length; i++) {
+        hash = 31 * hash + sender.charCodeAt(i);
     }
     let index = Math.abs(hash % colors.length);
     return colors[index];
 }
 
-usernameForm.addEventListener('submit', connect, true)
-messageForm.addEventListener('submit', sendMessage, true)
+function showUsernamePage() {
+    usernamePage.classList.remove("hidden");
+    document.getElementById("room-page").classList.add("hidden");
+}
+
+function showRoomSelectionPage() {
+    usernamePage.classList.add("hidden");
+    document.getElementById("room-page").classList.remove("hidden");
+    if (sessionStorage.getItem("room")) {
+        enterRoom(sessionStorage.getItem("room"));
+    }
+}
+
+usernameForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    username = document.querySelector('#name').value.trim();
+    if (username) {
+        sessionStorage.setItem("username", username);
+        connectToServer();
+    }
+}, true);
+
+window.addEventListener('beforeunload', function () {
+    if (stompClient && username && room) {
+        stompClient.send("/app/chat.leaveUser", {}, JSON.stringify({
+            sender: username,
+            type: "LEAVE",
+            room: room
+        }));
+    }
+});
+
+messageForm.addEventListener('submit', sendMessage, true);
+document.addEventListener('DOMContentLoaded', initializeApp);
