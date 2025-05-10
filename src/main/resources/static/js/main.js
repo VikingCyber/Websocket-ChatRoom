@@ -1,5 +1,8 @@
 'use strict';
 
+import { resendSavedMessages } from "./message-storage/storageManager";
+
+
 let usernamePage = document.querySelector('#username-page');
 let chatPage = document.querySelector('#chat-page');
 let usernameForm = document.querySelector('#usernameForm');
@@ -96,7 +99,6 @@ function joinRoom() {
         type: "JOIN",
         room: room
     }));
-
     document.getElementById("room-name-title").innerText = "Room: " + room;
 }
 
@@ -150,6 +152,8 @@ function onMessageReceived(payload) {
 
 function createMessageElement(message) {
     let messageElement = document.createElement('li');
+
+    console.log("Создаем элемент для сообщения: ", message);
 
     if (message.type === 'JOIN') {
         messageElement.classList.add('event-message');

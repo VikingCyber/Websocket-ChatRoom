@@ -173,12 +173,13 @@ button.accent {
 #chat-page ul li {
     line-height: 1.5rem;
     padding: 10px 20px;
-    margin: 0;
+    margin: 2px;
     border-bottom: 1px solid #f4f4f4;
 }
 
 #chat-page ul li p {
     margin: 0;
+    padding: 3px;
 }
 
 #chat-page .event-message {
@@ -191,6 +192,7 @@ button.accent {
     color: #777;
     font-size: 14px;
     word-wrap: break-word;
+    margin: 2px 0;
 }
 
 #chat-page .chat-message {
@@ -302,3 +304,34 @@ button.accent {
         font-size: 1.1em;
     }
 }
+
+#messageArea {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-message {
+  display: flex;
+  align-items: center;
+  max-width: 60%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  margin: 8px 0;
+  word-break: break-word;
+}
+
+.my-message {
+  align-self: flex-end;
+  background-color: #c6f6d5;
+  color: #2f855a;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+
+}
+
+.other-message {
+  align-self: flex-start;
+  background-color: #edf2f7;
+  color: #2d3748;
+}
+
