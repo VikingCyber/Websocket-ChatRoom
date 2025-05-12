@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" charset="UTF-8">
     <title>Spring Boot WebSocket Chat Application</title>
     <link rel="stylesheet" href="css/main.css" />
 </head>
@@ -21,8 +21,15 @@
     </div>
 </div>
 
-<div id="chat-page" class="hidden">
+<div id="chat-page" class="hidden">     
     <div class="chat-container">
+        <div class="push-toggle-container">
+            <label class="switch">
+              <input type="checkbox" id="push-toggle">
+              <span class="slider round"></span>
+            </label>
+            <span class="toggle-label">Push уведомления</span>
+        </div> 
         <div class="chat-header">
             <h2>Spring WebSocket Chat</h2>
             <h3 id="room-name-title"></h3>

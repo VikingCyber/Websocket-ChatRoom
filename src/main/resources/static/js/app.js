@@ -1,8 +1,9 @@
 'use strict';
 
+import { handlePushToggleChange, initNotifications } from "./notificationSettings.js/notifications.js";
 import { createRoom, enterRoom, leaveRoom } from "./room/roomController.js";
 import { appState } from "./state/appState.js";
-import { createRoomButton, leaveRoomButton, messageForm, messageInput, nameInput, usernameForm } from "./ui/domElements.js";
+import { createRoomButton, leaveRoomButton, messageForm, messageInput, nameInput, pushToggle, usernameForm } from "./ui/domElements.js";
 import { navigateToRoomPage, showUsernamePage } from "./ui/ui.js";
 import { connectToServer, sendMessage } from "./websocket/websocket.js";
 
@@ -14,6 +15,7 @@ function initializeApp() {
   } else {
     showUsernamePage();
   }
+  initNotifications();
 }
 
 // Listeners
@@ -46,6 +48,7 @@ usernameForm.addEventListener('submit', function (event) {
   }
 });
 
+pushToggle.addEventListener("change", handlePushToggleChange);
 createRoomButton.addEventListener("click", createRoom)
 leaveRoomButton.addEventListener("click", leaveRoom)
 

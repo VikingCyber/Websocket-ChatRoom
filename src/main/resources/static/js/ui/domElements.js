@@ -12,3 +12,4 @@ export const roomNameTitle = document.getElementById("room-name-title");
 export const createRoomButton = document.getElementById("create-room");
 export const newRoomNameInput = document.getElementById("new-room-name")
 export const leaveRoomButton = document.getElementById("leave-room");
+export const pushToggle = document.getElementById("push-toggle");
