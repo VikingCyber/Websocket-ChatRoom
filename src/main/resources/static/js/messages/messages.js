@@ -28,7 +28,7 @@ export function onMessageReceived(payload) {
 
       if (message.sender !== appState.username && document.hidden) {
         console.log("Показываем уведомление");
-        showNotification(`Сообщение от ${message.sender}`, { body: message.content });
+        showNotification(`Сообщение от ${message.sender}, { body: message.content }`);
       }
     }
 

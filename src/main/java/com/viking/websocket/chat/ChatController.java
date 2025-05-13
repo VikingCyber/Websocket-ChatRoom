@@ -22,6 +22,9 @@ public class ChatController {
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
+    @Autowired
+    private NotificationService notificationService;
+
     private final Map<String, List<String>> activeRooms = new ConcurrentHashMap<>();
 
     @MessageMapping("/chat.addUser")
@@ -79,6 +82,18 @@ public class ChatController {
     @MessageMapping("/chat.sendMessage/{roomName}")
     @SendTo("/topic/public/{roomName}")
     public ChatMessage sendMessage(@DestinationVariable String roomName, @Payload ChatMessage message) {
+        // Проверяем, что это сообщение типа CHAT
+        if (MessageType.CHAT.equals(message.getType())) {
+            // Создаем уведомление
+            NotificationMessage notificationMessage = new NotificationMessage(
+                    "Новое сообщение в комнате " + roomName,
+                    message.getSender() + ": " + message.getContent(),
+                    "CHAT");
+            // Отправляем пуш-уведомление всем подписанным
+            notificationService.broadcastNotification(notificationMessage);
+        }
+
+        // Возвращаем само сообщение для WebSocket
         return message;
     }
 

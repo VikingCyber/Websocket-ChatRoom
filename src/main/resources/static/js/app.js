@@ -1,6 +1,6 @@
 'use strict';
 
-import { handlePushToggleChange, initNotifications } from "./notificationSettings.js/notifications.js";
+import { handlePushToggleChange, initPushNotifications } from "./notificationSettings.js/pushManager.js";
 import { createRoom, enterRoom, leaveRoom } from "./room/roomController.js";
 import { appState } from "./state/appState.js";
 import { createRoomButton, leaveRoomButton, messageForm, messageInput, nameInput, pushToggle, usernameForm } from "./ui/domElements.js";
@@ -15,7 +15,7 @@ function initializeApp() {
   } else {
     showUsernamePage();
   }
-  initNotifications();
+  initPushNotifications();
 }
 
 // Listeners
@@ -31,7 +31,6 @@ messageForm.addEventListener('submit', function (event) {
       room: appState.room,
       type: "CHAT"
     };
-
     sendMessage(`/app/chat.sendMessage/${appState.room}`, message);
     messageInput.value = "";
   } else {
@@ -49,8 +48,8 @@ usernameForm.addEventListener('submit', function (event) {
 });
 
 pushToggle.addEventListener("change", handlePushToggleChange);
-createRoomButton.addEventListener("click", createRoom)
-leaveRoomButton.addEventListener("click", leaveRoom)
+createRoomButton.addEventListener("click", createRoom);
+leaveRoomButton.addEventListener("click", leaveRoom);
 
 window.addEventListener('beforeunload', function () {
   if (appState.stompClient && appState.username && appState.room) {
